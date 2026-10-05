@@ -1,59 +1,81 @@
-# Configuration des serveurs MCP
+# Faire de ta machine l'appareil principal pour Claude Code
 
 Playwright, Firecrawl et Perplexity, disponibles dans toutes les sessions
-Claude Code et tous les projets. Les clés ne sont jamais committées.
+Claude Code et tous les projets de ta machine. Les clés ne sont jamais
+committées.
 
-## La méthode
+## Pourquoi en local plutôt que dans le cloud
 
-Deux fichiers travaillent ensemble, et c'est ce qui rend les serveurs
-disponibles partout :
+Les serveurs MCP ne servent à rien s'ils ne joignent pas leurs API. Dans un
+conteneur Claude Code cloud, la politique réseau refuse `api.firecrawl.dev` et
+`api.perplexity.ai`, et Playwright n'a pas de navigateur à piloter chez toi.
+Sur ta machine, aucune de ces limites ne s'applique.
+
+Un serveur marqué connecté veut seulement dire que son processus a démarré.
+Cela ne prouve ni que sa clé est valide, ni que son API est joignable.
+
+## Parcours machine neuve
+
+1. Installer Node.js 18 ou plus récent, requis parce que les trois serveurs
+   sont lancés par `npx`.
+2. Installer Claude Code :
+
+   ```bash
+   curl -fsSL https://claude.ai/install.sh | bash
+   ```
+
+3. Cloner ce dépôt, renseigner les clés, lancer le script :
+
+   ```bash
+   git clone https://github.com/nandoriethan-jpg/plugin
+   cd plugin
+   cp .env.example .env    # puis remplir les 2 clés
+   ./scripts/setup-mcp-global.sh
+   ```
+
+4. Installer le navigateur de Playwright :
+
+   ```bash
+   npx playwright install chromium
+   ```
+
+5. Redémarrer Claude Code. Les serveurs sont lus au démarrage d'une session.
+
+Le script vérifie d'abord `python3`, `node` et `claude`, et nomme la commande
+d'installation manquante le cas échéant. Il refuse de tourner si une clé
+manque, sans rien écrire. Il fusionne dans tes fichiers existants au lieu de
+les écraser, pose `settings.json` en permissions 600, et finit par un
+`claude mcp list` de contrôle. L'option `--no-verify` saute ce contrôle.
+
+## La méthode, en deux fichiers
 
 | Fichier | Rôle |
 | --- | --- |
-| `~/.claude.json` | déclare les trois serveurs en scope utilisateur, avec leurs clés référencées par `${VARIABLE}` |
+| `~/.claude.json` | déclare les trois serveurs en scope utilisateur, clés référencées par `${VARIABLE}` |
 | `~/.claude/settings.json` | donne les valeurs de ces variables dans son bloc `env` |
 
 Claude Code lit lui-même ces deux fichiers au démarrage de chaque session,
-quel que soit le dossier courant. Aucun profil de shell n'est modifié, donc la
-méthode vaut aussi pour l'application desktop, qui ne lit pas forcément un
-`.zshrc` ou un `.bashrc`.
+quel que soit le dossier courant. C'est le scope utilisateur qui donne le
+« partout » : un `.mcp.json` de projet ne vaut que dans ce projet, et des
+variables exportées à la main ne valent que pour ce shell.
 
-Le scope utilisateur est ce qui donne le « partout ». Un `.mcp.json` de projet
-ne vaut que dans ce projet, et les variables exportées à la main dans un shell
-ne valent que pour ce shell.
-
-## Installation globale
-
-```bash
-cp .env.example .env    # puis remplir les 2 clés
-./scripts/setup-mcp-global.sh
-```
-
-Le script fusionne dans les fichiers existants au lieu de les écraser, pose
-`settings.json` en permissions 600, et refuse de tourner si une clé manque.
-Il lit `.env` automatiquement, ou prend les variables de l'environnement.
-
-Redémarrer Claude Code, puis vérifier :
-
-```bash
-claude mcp list
-```
-
-Les trois serveurs doivent apparaître connectés, depuis n'importe quel dossier.
+Poser les clés dans `settings.json` plutôt que dans un `.zshrc` a un avantage
+concret. Claude Code les lit directement, donc la configuration vaut aussi pour
+l'application desktop, qui ne lit pas forcément un profil de shell.
 
 ## Le .mcp.json du dépôt
 
 Ce dépôt déclare aussi les trois serveurs dans `.mcp.json`, avec la même
 syntaxe `${VARIABLE}`. C'est redondant avec l'installation globale sur ta
 machine, mais utile ailleurs : une session cloud, une autre machine, ou un
-collaborateur qui clone le dépôt obtient les serveurs sans rien installer.
-Les deux coexistent sans conflit, la config de projet ayant la priorité.
+collaborateur qui clone le dépôt. Les deux coexistent sans conflit, la config
+de projet ayant la priorité.
 
-## Session cloud
+## Si tu veux aussi des sessions cloud
 
-Les clés doivent être définies comme secrets de l'environnement, et la
-politique réseau doit autoriser les hôtes suivants, sinon les serveurs
-démarrent mais leurs appels d'API échouent :
+Il faut définir les clés comme secrets de l'environnement et autoriser les
+hôtes ci-dessous dans sa politique réseau, sinon les serveurs démarrent mais
+leurs appels échouent.
 
 | Serveur | Hôte à autoriser |
 | --- | --- |
@@ -81,12 +103,3 @@ Cette forme inscrit la clé en clair dans `~/.claude.json`. Le script lui
 préfère `${VARIABLE}`, ce qui garde les secrets dans un seul fichier en 600.
 
 Pour retirer un serveur : `claude mcp remove --scope user <nom>`.
-
-## Notes
-
-Playwright a besoin d'un navigateur installé. Si le serveur est connecté mais
-qu'un outil échoue, lancer `npx playwright install chromium`.
-
-Un serveur MCP marqué connecté veut seulement dire que son processus a
-démarré. Cela ne prouve pas que sa clé est valide ni que son API est
-joignable.

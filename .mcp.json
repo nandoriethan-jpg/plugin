@@ -30,6 +30,16 @@
       "env": {
         "PERPLEXITY_API_KEY": "${PERPLEXITY_API_KEY}"
       }
+    },
+    "markitdown": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "markitdown-mcp",
+        "markitdown-mcp"
+      ],
+      "env": {}
     }
   }
 }

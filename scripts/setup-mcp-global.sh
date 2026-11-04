@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prepare cette machine comme appareil principal pour Claude Code :
-# Playwright, Firecrawl et Perplexity disponibles dans toutes les sessions et
-# tous les projets.
+# Playwright, Firecrawl, Perplexity et MarkItDown disponibles dans toutes les
+# sessions et tous les projets.
 #
 # Methode : les serveurs sont declares en scope utilisateur (~/.claude.json) et
 # referencent leurs cles par ${VARIABLE}. Les valeurs sont posees dans le bloc
@@ -37,12 +37,24 @@ echo "  python3 : $(python3 --version 2>&1)"
 
 if ! command -v node >/dev/null || ! command -v npx >/dev/null; then
   cat >&2 <<'MSG'
-  node et npx sont requis : les trois serveurs MCP sont lances par npx.
+  node et npx sont requis : trois des quatre serveurs MCP sont lances par npx.
   Installe Node.js 18 ou plus recent, puis relance.
 MSG
   exit 1
 fi
 echo "  node    : $(node --version)"
+
+if ! command -v uvx >/dev/null; then
+  cat >&2 <<'MSG'
+  uvx est requis : markitdown-mcp est un paquet Python, pas un paquet npm.
+  Installe uv (qui fournit uvx) puis relance :
+
+    curl -fsSL https://astral.sh/uv/install.sh | sh
+
+MSG
+  exit 1
+fi
+echo "  uvx     : $(uvx --version 2>&1 | head -1)"
 
 if ! command -v claude >/dev/null; then
   cat >&2 <<'MSG'
@@ -123,9 +135,14 @@ main["mcpServers"].update({
         "args": ["-y", "@perplexity-ai/mcp-server"],
         "env": {"PERPLEXITY_API_KEY": "${PERPLEXITY_API_KEY}"},
     },
+    # markitdown-mcp est un paquet Python lance par uvx, et sans cle d'API.
+    "markitdown": {
+        "type": "stdio", "command": "uvx",
+        "args": ["--from", "markitdown-mcp", "markitdown-mcp"], "env": {},
+    },
 })
 main_path.write_text(json.dumps(main, indent=2) + "\n")
-print(f"  {main_path} : 3 serveurs en scope utilisateur")
+print(f"  {main_path} : 4 serveurs en scope utilisateur")
 PY
 
 if [ "$verify" -eq 1 ]; then
@@ -141,4 +158,6 @@ Redemarre Claude Code pour que les serveurs soient actifs dans la session.
 Ils sont desormais disponibles depuis n'importe quel dossier.
 
 Playwright a besoin d'un navigateur : npx playwright install chromium
+MarkItDown n'a besoin d'aucune cle : son premier lancement telecharge ses
+dependances Python, ce qui peut prendre une minute.
 MSG

@@ -1,7 +1,7 @@
 # Faire de ta machine l'appareil principal pour Claude Code
 
-Playwright, Firecrawl et Perplexity, disponibles dans toutes les sessions
-Claude Code et tous les projets de ta machine. Les clés ne sont jamais
+Playwright, Firecrawl, Perplexity et MarkItDown, disponibles dans toutes les
+sessions Claude Code et tous les projets de ta machine. Les clés ne sont jamais
 committées.
 
 ## Pourquoi en local plutôt que dans le cloud
@@ -16,15 +16,22 @@ Cela ne prouve ni que sa clé est valide, ni que son API est joignable.
 
 ## Parcours machine neuve
 
-1. Installer Node.js 18 ou plus récent, requis parce que les trois serveurs
-   sont lancés par `npx`.
-2. Installer Claude Code :
+1. Installer Node.js 18 ou plus récent, requis parce que trois des quatre
+   serveurs sont lancés par `npx`.
+2. Installer `uv`, qui fournit `uvx`, requis parce que MarkItDown est un
+   paquet Python :
+
+   ```bash
+   curl -fsSL https://astral.sh/uv/install.sh | sh
+   ```
+
+3. Installer Claude Code :
 
    ```bash
    curl -fsSL https://claude.ai/install.sh | bash
    ```
 
-3. Cloner ce dépôt, renseigner les clés, lancer le script :
+4. Cloner ce dépôt, renseigner les clés, lancer le script :
 
    ```bash
    git clone https://github.com/nandoriethan-jpg/plugin
@@ -33,15 +40,15 @@ Cela ne prouve ni que sa clé est valide, ni que son API est joignable.
    ./scripts/setup-mcp-global.sh
    ```
 
-4. Installer le navigateur de Playwright :
+5. Installer le navigateur de Playwright :
 
    ```bash
    npx playwright install chromium
    ```
 
-5. Redémarrer Claude Code. Les serveurs sont lus au démarrage d'une session.
+6. Redémarrer Claude Code. Les serveurs sont lus au démarrage d'une session.
 
-Le script vérifie d'abord `python3`, `node` et `claude`, et nomme la commande
+Le script vérifie d'abord `python3`, `node`, `uvx` et `claude`, et nomme la commande
 d'installation manquante le cas échéant. Il refuse de tourner si une clé
 manque, sans rien écrire. Il fusionne dans tes fichiers existants au lieu de
 les écraser, pose `settings.json` en permissions 600, et finit par un
@@ -51,7 +58,7 @@ les écraser, pose `settings.json` en permissions 600, et finit par un
 
 | Fichier | Rôle |
 | --- | --- |
-| `~/.claude.json` | déclare les trois serveurs en scope utilisateur, clés référencées par `${VARIABLE}` |
+| `~/.claude.json` | déclare les quatre serveurs en scope utilisateur, clés référencées par `${VARIABLE}` |
 | `~/.claude/settings.json` | donne les valeurs de ces variables dans son bloc `env` |
 
 Claude Code lit lui-même ces deux fichiers au démarrage de chaque session,
@@ -65,7 +72,7 @@ l'application desktop, qui ne lit pas forcément un profil de shell.
 
 ## Le .mcp.json du dépôt
 
-Ce dépôt déclare aussi les trois serveurs dans `.mcp.json`, avec la même
+Ce dépôt déclare aussi les quatre serveurs dans `.mcp.json`, avec la même
 syntaxe `${VARIABLE}`. C'est redondant avec l'installation globale sur ta
 machine, mais utile ailleurs : une session cloud, une autre machine, ou un
 collaborateur qui clone le dépôt. Les deux coexistent sans conflit, la config
@@ -82,6 +89,7 @@ leurs appels échouent.
 | Firecrawl | `api.firecrawl.dev` |
 | Perplexity | `api.perplexity.ai` |
 | Playwright | les sites à visiter |
+| MarkItDown | aucun, sauf pour convertir une URL distante |
 
 Les deux réglages sont dans les paramètres de l'environnement cloud, menu de
 l'environnement dans la barre de titre de la session, puis Edit. Les niveaux
@@ -97,9 +105,27 @@ Pour ajouter un serveur à la main. Noter que `-e` attend une paire
 claude mcp add --scope user playwright -- npx -y @playwright/mcp@latest
 claude mcp add --scope user firecrawl -e FIRECRAWL_API_KEY=... -- npx -y firecrawl-mcp
 claude mcp add --scope user perplexity -e PERPLEXITY_API_KEY=... -- npx -y @perplexity-ai/mcp-server
+claude mcp add --scope user markitdown -- uvx --from markitdown-mcp markitdown-mcp
 ```
 
 Cette forme inscrit la clé en clair dans `~/.claude.json`. Le script lui
 préfère `${VARIABLE}`, ce qui garde les secrets dans un seul fichier en 600.
 
 Pour retirer un serveur : `claude mcp remove --scope user <nom>`.
+
+## MarkItDown
+
+Le serveur officiel de Microsoft, dossier `packages/markitdown-mcp` du dépôt
+<https://github.com/microsoft/markitdown>. Il expose un seul outil,
+`convert_to_markdown`, qui prend un `uri` et rend le document en Markdown :
+PDF, Word, Excel, PowerPoint, mais aussi CSV, HTML, ZIP, EPUB, images et audio.
+
+Il ne demande aucune clé et tourne entièrement en local, contrairement aux
+trois autres. Son coût est ailleurs : la première exécution télécharge une
+grosse pile de dépendances Python, dont `onnxruntime` et `numpy`, soit une
+centaine de mégaoctets mis en cache par `uv`.
+
+Le `uri` doit porter un schéma. Un fichier local s'écrit
+`file:///chemin/absolu/vers/doc.pdf` ; un chemin nu est refusé. Le CLAUDE.md du
+dépôt impose de passer par cet outil pour tout PDF, Word ou Excel, au lieu de
+tenter une lecture directe.
